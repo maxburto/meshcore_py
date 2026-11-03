@@ -303,3 +303,23 @@ async def test_advert_path_preserves_embedded_zero_bytes():
     assert payload["path_hash_mode"] == 2
     assert payload["path_len"] == 2
     assert payload["path"] == "12003456789a"
+
+
+def _self_info_frame(tx_power: int) -> bytearray:
+    frame = bytearray([5, 1, tx_power & 0xFF, 22]) + bytes(32)  # SELF_INFO, adv_type, tx_power, max_tx_power, public key
+    frame += bytes(8) + bytes([0, 0, 0, 0])  # lat, lon, multi_acks, adv_loc_policy, telemetry, manual_add
+    frame += (910525).to_bytes(4, "little") + (62500).to_bytes(4, "little") + bytes([7, 5]) + b"node"
+    return frame
+
+
+@pytest.mark.asyncio
+async def test_self_info_tx_power_is_signed():
+    # The firmware sends its int8 tx_power_dbm as one byte, so -9 dBm arrives as 0xF7.
+    for sent, expected in ((22, 22), (-9, -9)):
+        mock_dispatcher = MockDispatcher()
+        reader = MessageReader(mock_dispatcher)
+        await reader.handle_rx(_self_info_frame(sent))
+        info = mock_dispatcher.dispatched_events[-1].payload
+        assert info["tx_power"] == expected
+        assert info["max_tx_power"] == 22
+        assert info["radio_freq"] == 910.525 and info["name"] == "node"

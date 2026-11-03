@@ -209,6 +209,14 @@ async def test_set_tx_power(command_handler, mock_connection):
     assert mock_connection.send.call_args[0][0].startswith(b"\x0c")
 
 
+async def test_set_tx_power_frames(command_handler, mock_connection):
+    # The firmware reads the power as an int8 (CMD_SET_RADIO_TX_POWER, -9 up to the board's maximum).
+    await command_handler.set_tx_power(20)
+    assert mock_connection.send.call_args[0][0] == b"\x0c\x14\x00\x00\x00"
+    await command_handler.set_tx_power(-9)
+    assert mock_connection.send.call_args[0][0] == b"\x0c\xf7\xff\xff\xff"
+
+
 async def test_get_contacts(command_handler, mock_connection):
     await command_handler.get_contacts()
     assert mock_connection.send.call_args[0][0].startswith(b"\x04")

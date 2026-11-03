@@ -166,7 +166,7 @@ class MessageReader:
             elif packet_type_value == PacketType.SELF_INFO.value:
                 self_info = {}
                 self_info["adv_type"] = dbuf.read(1)[0]
-                self_info["tx_power"] = dbuf.read(1)[0]
+                self_info["tx_power"] = int.from_bytes(dbuf.read(1), "little", signed=True)
                 self_info["max_tx_power"] = dbuf.read(1)[0]
                 self_info["public_key"] = dbuf.read(32).hex()
                 self_info["adv_lat"] = (

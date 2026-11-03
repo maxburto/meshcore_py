@@ -84,7 +84,7 @@ class DeviceCommands(CommandHandlerBase):
     async def set_tx_power(self, val: int) -> Event:
         logger.debug(f"Setting TX power to: {val}")
         return await self.send(
-            b"\x0c" + int(val).to_bytes(4, "little"), [EventType.OK, EventType.ERROR]
+            b"\x0c" + int(val).to_bytes(4, "little", signed=True), [EventType.OK, EventType.ERROR]
         )
 
     async def set_radio(self, freq: float, bw: float, sf: int, cr: int, repeat = None) -> Event:
