@@ -4,7 +4,7 @@ import struct
 import time
 import io
 import traceback
-from typing import Any, Dict
+from typing import Optional, Any, Dict
 from .events import Event, EventType, EventDispatcher, ErrorMessages
 from .meshcore_parser import MeshcorePacketParser
 from .packets import BinaryReqType, PacketType, ControlType
@@ -17,6 +17,7 @@ logger = logging.getLogger("meshcore")
 
 class MessageReader:
     def __init__(self, dispatcher: EventDispatcher):
+        self._long_log: Optional[bytearray] = None  # the parts so far of a long heard packet
         self.dispatcher = dispatcher
         # We're only keeping state here that's needed for processing
         # before events are dispatched
@@ -62,6 +63,30 @@ class MessageReader:
         for tag in expired_tags:
             logger.debug(f"Cleaning up expired binary request: tag={tag}")
             del self.pending_binary_requests[tag]
+
+    def _long_log_part(self, data: bytearray) -> Optional[bytearray]:
+        """Take one part of a heard packet too long for a single log frame (PacketType.LOG_DATA_LONG). Returns the whole
+        packet as the ordinary frame it would have been (LOG_DATA when heard with the link free, else LOG_DATA_KEPT), or
+        None until the last part. A part out of order means a part was lost, so the packet is given up: the radio's
+        packet counters then show one more than was reported."""
+        if len(data) < 12:
+            logger.warning(f"Short long-packet part ({len(data)} bytes), ignored")
+            return None
+        snr_rssi, age_dropped = bytes(data[1:3]), bytes(data[3:9])
+        live, total, offset, part = bool(data[9] & 1), data[10], data[11], bytes(data[12:])
+        if offset == 0:
+            self._long_log = bytearray()
+        elif self._long_log is None or offset != len(self._long_log):
+            logger.warning(f"Long heard packet of {total} bytes lost a part before offset {offset}, given up")
+            self._long_log = None
+            return None
+        self._long_log += part
+        if len(self._long_log) < total:
+            return None
+        raw, self._long_log = self._long_log[:total], None
+        if live:
+            return bytearray([PacketType.LOG_DATA.value]) + snr_rssi + raw
+        return bytearray([PacketType.LOG_DATA_KEPT.value]) + snr_rssi + age_dropped + raw
 
     async def handle_rx(self, data: bytearray):
         dbuf = io.BytesIO(data)
@@ -678,6 +703,11 @@ class MessageReader:
                 await self.dispatcher.dispatch(
                     Event(EventType.STATUS_RESPONSE, res, attributes)
                 )
+
+            elif packet_type_value == PacketType.LOG_DATA_LONG.value:
+                whole = self._long_log_part(data)
+                if whole is not None:
+                    await self.handle_rx(whole)
 
             elif packet_type_value in (PacketType.LOG_DATA.value, PacketType.LOG_DATA_KEPT.value):
                 kept = packet_type_value == PacketType.LOG_DATA_KEPT.value

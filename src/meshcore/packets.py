@@ -146,5 +146,9 @@ class PacketType(Enum):
     # A heard packet the radio kept while no client could take it: LOG_DATA's
     # snr4, rssi, then age_ms (u32 LE, how long ago it was heard), dropped_before (u16 LE), raw.
     LOG_DATA_KEPT = 0x91
+    # A heard packet too long for one LOG_DATA frame, in parts in order: snr4, rssi, age_ms (u32 LE),
+    # dropped_before (u16 LE), flags (bit 0: heard with the link free, so not late), total length, this part's
+    # offset in the packet, then the bytes.
+    LOG_DATA_LONG = 0x92
     # Note: 0x90 == ControlType.NODE_DISCOVER_RESP in a different namespace.
     # Not a literal conflict (PacketType vs ControlType), but a maintenance hazard.
