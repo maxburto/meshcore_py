@@ -69,6 +69,10 @@ class EventType(Enum):
     # Connection events
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
+    # The link dropped and auto-reconnect has started: payload {"reason": ...}.
+    # The drop ends with CONNECTED {"reconnected": True}, or DISCONNECTED if the
+    # attempts run out.
+    RECONNECTING = "reconnecting"
 
 # a dict to associate a message to an error code
 ErrorMessages = {

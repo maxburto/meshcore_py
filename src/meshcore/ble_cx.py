@@ -4,6 +4,7 @@ mccli.py : CLI interface to MeschCore BLE companion app
 
 import asyncio
 import logging
+import weakref
 from typing import Optional
 
 
@@ -26,6 +27,24 @@ logger = logging.getLogger("meshcore")
 UART_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 UART_RX_CHAR_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 UART_TX_CHAR_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
+
+# One Bluetooth LE connection setup at a time per event loop (that is, per process).
+# A controller creates one LE connection at a time, and BlueZ refuses or stalls a
+# second setup started while one is pending: two radios started together, or two
+# radios reconnecting after the same drop, then leave one of them unjoined. Every
+# BLEConnection in the loop takes this lock for its whole setup (device lookup,
+# connect, pairing, notifications); established links are not affected.
+_setup_locks: "weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock]" = weakref.WeakKeyDictionary()
+
+
+def _setup_lock() -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    lock = _setup_locks.get(loop)
+    if lock is None:
+        lock = asyncio.Lock()
+        _setup_locks[loop] = lock
+    return lock
+
 
 class BLEConnection:
     # Upper bound on a single write (lock acquisition included). Healthy writes
@@ -105,6 +124,16 @@ class BLEConnection:
                 logger.debug("Best-effort cleanup of stale BLE client failed", exc_info=True)
 
     async def connect(self):
+        """
+        Connects to the device, one setup at a time per process (see _setup_lock).
+
+        Returns:
+            The address used for connection, or None on failure.
+        """
+        async with _setup_lock():
+            return await self._connect_unlocked()
+
+    async def _connect_unlocked(self):
         """
         Connects to the device.
 

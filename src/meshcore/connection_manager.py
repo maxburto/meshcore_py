@@ -109,6 +109,7 @@ class ConnectionManager:
             and self._reconnect_attempts < self.max_reconnect_attempts
         ):
             self._reconnect_task = asyncio.create_task(self._attempt_reconnect())
+            await self._emit_event(EventType.RECONNECTING, {"reason": reason})
         else:
             await self._emit_event(
                 EventType.DISCONNECTED,
