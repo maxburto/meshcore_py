@@ -19,12 +19,12 @@ def dispatched(frame):
 
 
 class TestRxLogKept(unittest.TestCase):
-    def test_kept_frame_gives_heard_time_and_drops(self):
+    def test_kept_frame_gives_age_and_drops(self):
         frame = bytes([0x91, 0xEF, 0xB1]) + (1762581318).to_bytes(4, "little") + (3).to_bytes(2, "little") + RAW
         events = [e for e in dispatched(frame) if e.type == EventType.RX_LOG_KEPT]
         self.assertEqual(len(events), 1)
         p = events[0].payload
-        self.assertEqual(p["heard_at"], 1762581318)
+        self.assertEqual(p["age_ms"], 1762581318)
         self.assertEqual(p["dropped_before"], 3)
         self.assertEqual(p["snr"], -4.25)
         self.assertEqual(p["rssi"], -79)
@@ -35,7 +35,7 @@ class TestRxLogKept(unittest.TestCase):
         events = [e for e in dispatched(frame) if e.type in (EventType.RX_LOG_DATA, EventType.RX_LOG_KEPT)]
         self.assertEqual([e.type for e in events], [EventType.RX_LOG_DATA])
         self.assertEqual(events[0].payload["payload"], RAW.hex())
-        self.assertNotIn("heard_at", events[0].payload)
+        self.assertNotIn("age_ms", events[0].payload)
 
 
 if __name__ == "__main__":

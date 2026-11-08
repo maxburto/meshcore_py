@@ -708,7 +708,7 @@ class MessageReader:
                 # A kept packet then carries when it was heard and how many were lost before it
                 head = 3
                 if kept and len(data) >= 9:
-                    log_data["heard_at"] = int.from_bytes(dbuf.read(4), byteorder="little")
+                    log_data["age_ms"] = int.from_bytes(dbuf.read(4), byteorder="little")
                     log_data["dropped_before"] = int.from_bytes(dbuf.read(2), byteorder="little")
                     head = 9
 

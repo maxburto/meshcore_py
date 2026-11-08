@@ -39,7 +39,7 @@ class EventType(Enum):
     LOG_DATA = "log_data"
     TRACE_DATA = "trace_data"
     RX_LOG_DATA = "rx_log_data"
-    # RX_LOG_DATA plus "heard_at" (radio clock, s) and "dropped_before" (packets
+    # RX_LOG_DATA plus "age_ms" (how long ago it was heard) and "dropped_before" (packets
     # the radio could not keep since the last kept one), sent late by the radio.
     RX_LOG_KEPT = "rx_log_kept"
     TELEMETRY_RESPONSE = "telemetry_response"
