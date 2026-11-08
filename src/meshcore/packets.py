@@ -143,5 +143,8 @@ class PacketType(Enum):
     CONTROL_DATA = 0x8E
     CONTACT_DELETED = 0x8F
     CONTACTS_FULL = 0x90  # N02: MyMesh::onContactsFull() — 1-byte push, no payload
+    # A heard packet the radio kept while no client could take it: LOG_DATA's
+    # snr4, rssi, then heard_at (u32 LE, radio clock), dropped_before (u16 LE), raw.
+    LOG_DATA_KEPT = 0x91
     # Note: 0x90 == ControlType.NODE_DISCOVER_RESP in a different namespace.
     # Not a literal conflict (PacketType vs ControlType), but a maintenance hazard.

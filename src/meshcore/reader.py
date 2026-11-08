@@ -679,7 +679,8 @@ class MessageReader:
                     Event(EventType.STATUS_RESPONSE, res, attributes)
                 )
 
-            elif packet_type_value == PacketType.LOG_DATA.value:
+            elif packet_type_value in (PacketType.LOG_DATA.value, PacketType.LOG_DATA_KEPT.value):
+                kept = packet_type_value == PacketType.LOG_DATA_KEPT.value
                 logger.debug(f"Received RF log data: {data.hex()}")
 
                 # Parse as raw RX data
@@ -704,9 +705,16 @@ class MessageReader:
                     rssi = rssi_byte if rssi_byte < 128 else rssi_byte - 256
                     log_data["rssi"] = rssi
 
+                # A kept packet then carries when it was heard and how many were lost before it
+                head = 3
+                if kept and len(data) >= 9:
+                    log_data["heard_at"] = int.from_bytes(dbuf.read(4), byteorder="little")
+                    log_data["dropped_before"] = int.from_bytes(dbuf.read(2), byteorder="little")
+                    head = 9
+
                 # Remaining bytes are the raw data payload
                 payload = None
-                if len(data) > 3:
+                if len(data) > head:
                     payload=dbuf.read()
                     log_data["payload"] = payload.hex()
                     log_data["payload_length"] = len(payload)
@@ -718,9 +726,9 @@ class MessageReader:
                     attributes['path_len'] = log_data['path_len']
                     attributes['path'] = log_data['path']
 
-                # Dispatch as RF log data
+                # Dispatch as RF log data (late, with its heard time, when the radio kept it)
                 await self.dispatcher.dispatch(
-                    Event(EventType.RX_LOG_DATA, log_data, attributes)
+                    Event(EventType.RX_LOG_KEPT if kept else EventType.RX_LOG_DATA, log_data, attributes)
                 )
 
             elif packet_type_value == PacketType.TRACE_DATA.value:
